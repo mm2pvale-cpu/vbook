@@ -63,56 +63,64 @@ fun LiquidGlassMenu(
     onDelete: (Book) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (!expanded) return
+    val currentBook by androidx.compose.runtime.rememberUpdatedState(book)
+    var activeBook by remember { mutableStateOf<Book?>(null) }
+    LaunchedEffect(currentBook) {
+        if (currentBook != null) {
+            activeBook = currentBook
+        }
+    }
 
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+    AnimatedVisibility(
+        visible = expanded,
+        enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(150)),
+        exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)),
+        modifier = modifier
     ) {
-        val density = LocalDensity.current
-        val screenWidthPx = with(density) { maxWidth.toPx() }
-        val screenHeightPx = with(density) { maxHeight.toPx() }
-
-        // Full screen overlay overlaying parent's Box bounds to capture backpress/dismiss taps
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    onDismissRequest()
-                }
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize()
         ) {
-            var animateIn by remember { mutableStateOf(false) }
-            LaunchedEffect(expanded) {
-                animateIn = true
-            }
+            val density = LocalDensity.current
+            val screenWidthPx = with(density) { maxWidth.toPx() }
+            val screenHeightPx = with(density) { maxHeight.toPx() }
 
-            AnimatedVisibility(
-                visible = animateIn,
-                enter = fadeIn(spring(stiffness = Spring.StiffnessLow)) +
-                        scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)),
-                exit = fadeOut() + scaleOut(),
-                modifier = Modifier.align(Alignment.TopStart)
+            // Full screen overlay overlaying parent's Box bounds to capture backpress/dismiss taps
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onDismissRequest()
+                    }
             ) {
                 val cornerRadius = 18.dp
 
                 Box(
-                    modifier = modifier
+                    modifier = Modifier
                         .offset {
                             val menuWidthPx = 180.dp.toPx()
                             val menuHeightPx = 110.dp.toPx()
 
-                            // Align to the left of the triple-dots, keeping inside screen boundaries
                             val rawX = anchorOffset.x - menuWidthPx + 32.dp.toPx()
                             val posX = rawX.coerceIn(16.dp.toPx(), screenWidthPx - menuWidthPx - 16.dp.toPx())
 
-                            // Display slightly below the clicked context
                             val rawY = anchorOffset.y + 36.dp.toPx()
                             val posY = rawY.coerceIn(16.dp.toPx(), screenHeightPx - menuHeightPx - 16.dp.toPx())
 
                             IntOffset(posX.roundToInt(), posY.roundToInt())
                         }
+                        .animateEnterExit(
+                            enter = scaleIn(
+                                androidx.compose.animation.core.tween(durationMillis = 150, easing = androidx.compose.animation.core.LinearOutSlowInEasing),
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+                            ) + fadeIn(androidx.compose.animation.core.tween(150)),
+                            exit = scaleOut(
+                                androidx.compose.animation.core.tween(durationMillis = 150),
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
+                            ) + fadeOut(androidx.compose.animation.core.tween(150))
+                        )
                         .width(180.dp)
                         .drawBackdrop(
                             backdrop = backdrop,
@@ -139,9 +147,7 @@ fun LiquidGlassMenu(
                         // Rename action
                         LiquidMenuItem(
                             onClick = {
-                                if (book != null) {
-                                    onRename(book)
-                                }
+                                activeBook?.let { onRename(it) }
                                 onDismissRequest()
                             },
                             backdrop = backdrop,
@@ -158,9 +164,7 @@ fun LiquidGlassMenu(
                         // Delete action
                         LiquidMenuItem(
                             onClick = {
-                                if (book != null) {
-                                    onDelete(book)
-                                }
+                                activeBook?.let { onDelete(it) }
                                 onDismissRequest()
                             },
                             backdrop = backdrop,

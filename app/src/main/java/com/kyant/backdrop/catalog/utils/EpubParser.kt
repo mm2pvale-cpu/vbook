@@ -2,6 +2,9 @@ package com.kyant.backdrop.catalog.utils
 
 import android.content.Context
 import android.util.Log
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.text.PDFTextStripper
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import java.io.File
 import java.util.UUID
 import java.util.zip.ZipFile
@@ -20,6 +23,46 @@ data class ParsedPage(
 )
 
 object EpubParser {
+    fun parsePdf(context: Context, pdfFile: File): ParsedBook {
+        PDFBoxResourceLoader.init(context)
+        val bookId = UUID.randomUUID().toString()
+        val destDir = File(context.filesDir, "books/$bookId")
+        destDir.mkdirs()
+
+        var title = "Unknown Document"
+        var author = "Unknown Author"
+        val pages = mutableListOf<ParsedPage>()
+
+        try {
+            PDDocument.load(pdfFile).use { document ->
+                val info = document.documentInformation
+                if (info != null) {
+                    if (!info.title.isNullOrBlank()) title = info.title
+                    if (!info.author.isNullOrBlank()) author = info.author
+                }
+
+                val stripper = PDFTextStripper()
+                val totalPages = document.numberOfPages
+                for (i in 1..totalPages) {
+                    stripper.startPage = i
+                    stripper.endPage = i
+                    val text = stripper.getText(document)
+                    if (text.trim().isNotEmpty()) {
+                        val chunks = splitIntoPages(text, 6500)
+                        for (chunk in chunks) {
+                            pages.add(ParsedPage("Page $i", chunk))
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("EpubParser", "Failed to parse PDF", e)
+            throw RuntimeException("Failed to scan PDF", e)
+        }
+
+        return ParsedBook(bookId, title, author, null, pages)
+    }
+
     fun parseEpub(context: Context, epubFile: File): ParsedBook {
         val bookId = UUID.randomUUID().toString()
         val destDir = File(context.filesDir, "books/$bookId")
@@ -126,6 +169,25 @@ object EpubParser {
                             coverPath = extractedCoverFile.absolutePath
                         }
                     }
+                    
+                    // Extract all images
+                    val imageItems = items.filter { itemMediaTypes[it.key]?.startsWith("image/", ignoreCase = true) == true }
+                    val imagePathMap = mutableMapOf<String, String>()
+                    for ((_, imgHref) in imageItems) {
+                        val decodedImgHref = java.net.URLDecoder.decode(imgHref, "UTF-8")
+                        val zipImgPath = resolveRelativePath(opfDirectory, decodedImgHref)
+                        val imgEntry = zip.getEntry(zipImgPath)
+                            ?: zip.entries().asSequence().find { it.name.endsWith(File(zipImgPath).name) }
+                        if (imgEntry != null) {
+                            val extractedImgFile = File(destDir, File(zipImgPath).name.replace(" ", "_"))
+                            zip.getInputStream(imgEntry).use { input ->
+                                extractedImgFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            imagePathMap[File(zipImgPath).name] = extractedImgFile.absolutePath
+                        }
+                    }
 
                     val spineMatches = "<itemref\\s+idref=\"([^\"]+)\"".toRegex(RegexOption.IGNORE_CASE).findAll(opfXml)
                     val readingOrderIds = spineMatches.map { it.groupValues[1] }.toList()
@@ -145,9 +207,9 @@ object EpubParser {
                                 chapterTitle = chTitleMatch.groupValues[1].trim()
                             }
 
-                            val plainText = stripHtml(htmlContent)
+                            val plainText = processHtmlWithImages(htmlContent, imagePathMap)
                             if (plainText.trim().isNotEmpty()) {
-                                val chunks = splitIntoPages(plainText, 1000)
+                                val chunks = splitIntoPages(plainText, 6500)
                                 for (chunk in chunks) {
                                     pages.add(ParsedPage(chapterTitle, chunk))
                                 }
@@ -163,6 +225,8 @@ object EpubParser {
                     .sortedBy { it.name }
                     .toList()
 
+                // If pages are empty but we have images parsed implicitly from fallback html, we can't easily map them without OPF but we can try!
+                // To keep it simple, we just pass empty map or we could parse images here too if we want, but it's an edge case.
                 for (entry in htmlFiles) {
                     val htmlContent = zip.getInputStream(entry).bufferedReader().use { it.readText() }
                     var chapterTitle = "Chapter ${pages.size + 1}"
@@ -172,7 +236,7 @@ object EpubParser {
                     }
                     val plainText = stripHtml(htmlContent)
                     if (plainText.trim().isNotEmpty()) {
-                        val chunks = splitIntoPages(plainText, 1000)
+                        val chunks = splitIntoPages(plainText, 6500)
                         for (chunk in chunks) {
                             pages.add(ParsedPage(chapterTitle, chunk))
                         }
@@ -190,6 +254,25 @@ object EpubParser {
         }
 
         return ParsedBook(bookId, title, author, coverPath, pages)
+    }
+
+    private fun processHtmlWithImages(html: String, imageMap: Map<String, String>): String {
+        val imgRegex = "<(?:img|image)[^>]+(?:src|href)=['\"]([^'\"]+)['\"][^>]*>".toRegex(RegexOption.IGNORE_CASE)
+        val textWithImages = imgRegex.replace(html) { matchResult ->
+            val src = matchResult.groupValues[1]
+            val fileName = File(src.substringBefore("?").substringBefore("#")).name
+            
+            // Look for URL decoded match if direct match fails
+            val decodedFileName = java.net.URLDecoder.decode(fileName, "UTF-8")
+            val imgPath = imageMap[fileName] ?: imageMap[decodedFileName] ?: imageMap.entries.find { it.key.equals(fileName, true) }?.value
+            
+            if (imgPath != null) {
+                "\n\n[IMG:$imgPath]\n\n"
+            } else {
+                "" // Strip images if they aren't mapped
+            }
+        }
+        return stripHtml(textWithImages)
     }
 
     private fun resolveRelativePath(baseDir: String, relativePath: String): String {
@@ -216,13 +299,19 @@ object EpubParser {
             .replace("(?i)<script[\\s\\S]*?>[\\s\\S]*?</script>".toRegex(), "")
             .replace("(?i)<style[\\s\\S]*?>[\\s\\S]*?</style>".toRegex(), "")
             .replace("(?i)<head[\\s\\S]*?>[\\s\\S]*?</head>".toRegex(), "")
-            .replace("<[^>]+>".toRegex(), " ")
+            .replace("(?i)</?p[^>]*>".toRegex(), "\n\n")
+            .replace("(?i)<br\\s*/?>".toRegex(), "\n")
+            .replace("(?i)</?div[^>]*>".toRegex(), "\n\n")
+            .replace("(?i)</?h[1-6][^>]*>".toRegex(), "\n\n")
+            .replace("<[^>]+>".toRegex(), "")
             .replace("&nbsp;", " ")
             .replace("&amp;", "&")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&quot;", "\"")
-            .replace("\\s+".toRegex(), " ")
+            .replace("&#39;", "'")
+            .replace("(?m)^[ \\t]+".toRegex(), "") // remove leading spaces on lines
+            .replace("\n{3,}".toRegex(), "\n\n") // Squash more than 2 newlines
             .trim()
         return text
     }

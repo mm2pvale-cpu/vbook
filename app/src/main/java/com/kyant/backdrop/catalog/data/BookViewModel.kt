@@ -33,6 +33,12 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     private val _textAlign = MutableStateFlow(prefs.getString("text_align", "Justified") ?: "Justified")
     val textAlign = _textAlign.asStateFlow()
 
+    private val _language = MutableStateFlow(prefs.getString("language", "English") ?: "English")
+    val language = _language.asStateFlow()
+
+    private val _ttsEnabled = MutableStateFlow(prefs.getBoolean("tts_enabled", false))
+    val ttsEnabled = _ttsEnabled.asStateFlow()
+
     private val _activeBookId = MutableStateFlow<String?>(null)
     val activeBookId = _activeBookId.asStateFlow()
 
@@ -64,6 +70,16 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         _fontFamily.value = family
     }
 
+    fun setLanguage(lang: String) {
+        prefs.edit().putString("language", lang).apply()
+        _language.value = lang
+    }
+
+    fun setTtsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("tts_enabled", enabled).apply()
+        _ttsEnabled.value = enabled
+    }
+
     fun setLineSpacing(spacing: Float) {
         prefs.edit().putFloat("line_spacing", spacing).apply()
         _lineSpacing.value = spacing
@@ -74,11 +90,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         _textAlign.value = align
     }
 
-    fun importEpub(file: File, onSuccess: () -> Unit = {}) {
+    fun importFile(file: File, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _importing.value = true
             try {
-                bookRepository.importEpub(getApplication(), file)
+                bookRepository.importFile(getApplication(), file)
                 onSuccess()
             } catch (e: Exception) {
                 e.printStackTrace()

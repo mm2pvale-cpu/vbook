@@ -3,6 +3,8 @@ package com.kyant.backdrop.catalog
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
+import com.kyant.backdrop.catalog.utils.AppTts
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +18,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +31,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -37,6 +41,7 @@ import androidx.compose.material.icons.filled.FilePresent
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.UploadFile
@@ -121,6 +126,7 @@ fun MainContent() {
     }
 
     val activeBookId by viewModel.activeBookId.collectAsState()
+    val language by viewModel.language.collectAsState()
 
     BackHandler(destination != CatalogDestination.Home) {
         if (destination == CatalogDestination.Reader) {
@@ -222,7 +228,7 @@ fun MainContent() {
                         // Selected tab text fades out when active background row selected to completely avoid blurry overlapping
                         val textAlpha = if (!isBackdrop && tabSelected) 0f else 1f
                         Text(
-                            text = "Library",
+                            text = if (language == "Italian") "Libreria" else "Library",
                             color = if (isBackdrop && tabSelected) Color(0xFF0091FF) else Color.White,
                             fontSize = 11.sp,
                             fontWeight = if (tabSelected) FontWeight.Bold else FontWeight.Normal,
@@ -248,7 +254,7 @@ fun MainContent() {
                         )
                         val textAlpha = if (!isBackdrop && tabSelected) 0f else 1f
                         Text(
-                            text = "Upload",
+                            text = if (language == "Italian") "Carica" else "Upload",
                             color = if (isBackdrop && tabSelected) Color(0xFF0091FF) else Color.White,
                             fontSize = 11.sp,
                             fontWeight = if (tabSelected) FontWeight.Bold else FontWeight.Normal,
@@ -274,7 +280,7 @@ fun MainContent() {
                         )
                         val textAlpha = if (!isBackdrop && tabSelected) 0f else 1f
                         Text(
-                            text = "Settings",
+                            text = if (language == "Italian") "Impostazioni" else "Settings",
                             color = if (isBackdrop && tabSelected) Color(0xFF0091FF) else Color.White,
                             fontSize = 11.sp,
                             fontWeight = if (tabSelected) FontWeight.Bold else FontWeight.Normal,
@@ -294,6 +300,7 @@ fun LibraryGridContent(
     onReadBook: (String) -> Unit
 ) {
     val books by viewModel.books.collectAsState()
+    val language by viewModel.language.collectAsState()
     var renamingBook by remember { mutableStateOf<Book?>(null) }
     var renameTitle by remember { mutableStateOf("") }
 
@@ -319,7 +326,7 @@ fun LibraryGridContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "vbook bookshelf",
+                    text = "Libri",
                     style = TextStyle(
                         color = Color.White,
                         fontSize = 28.sp,
@@ -327,34 +334,6 @@ fun LibraryGridContent(
                         letterSpacing = (-0.5).sp
                     )
                 )
-
-                if (books.isNotEmpty()) {
-                    var barBtnOffset by remember { mutableStateOf(Offset.Zero) }
-                    LiquidButton(
-                        onClick = {
-                            classicMenuOffset = barBtnOffset
-                            showClassicMenu = true
-                        },
-                        backdrop = backdrop,
-                        modifier = Modifier
-                            .height(34.dp)
-                            .width(110.dp)
-                            .onGloballyPositioned { coords ->
-                                barBtnOffset = coords.positionInRoot()
-                            }
-                            .clip(RoundedCornerShape(10.dp)),
-                        isInteractive = true,
-                        surfaceColor = Color.White.copy(0.12f)
-                    ) {
-                        Text(
-                            "Classici ▾",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            letterSpacing = (-0.1).sp
-                        )
-                    }
-                }
             }
 
             if (books.isEmpty()) {
@@ -377,7 +356,7 @@ fun LibraryGridContent(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "No books uploaded",
+                            text = if (language == "Italian") "Nessun libro caricato" else "No books uploaded",
                             color = Color.White.copy(0.7f),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
@@ -385,39 +364,11 @@ fun LibraryGridContent(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Upload a .epub book file from the Upload tab or import our built-in premium novel below!",
+                            text = if (language == "Italian") "Carica un file .epub dalla scheda Carica per iniziare!" else "Upload a .epub book file from the Upload tab to get started!",
                             color = Color.White.copy(0.45f),
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(24.dp))
-
-                        var emptyBtnOffset by remember { mutableStateOf(Offset.Zero) }
-                        LiquidButton(
-                            onClick = {
-                                classicMenuOffset = emptyBtnOffset
-                                showClassicMenu = true
-                            },
-                            backdrop = backdrop,
-                            modifier = Modifier
-                                .height(44.dp)
-                                .width(220.dp)
-                                .onGloballyPositioned { coords ->
-                                    emptyBtnOffset = coords.positionInRoot()
-                                }
-                                .border(1.dp, Color.White.copy(0.18f), RoundedCornerShape(12.dp))
-                                .clip(RoundedCornerShape(12.dp)),
-                            isInteractive = true,
-                            surfaceColor = Color.White.copy(alpha = 0.12f)
-                        ) {
-                            Text(
-                                "Carica Classico ▾",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                letterSpacing = (-0.1).sp
-                            )
-                        }
                     }
                 }
             } else {
@@ -465,7 +416,7 @@ fun LibraryGridContent(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            text = "Rename Book",
+                            text = if (language == "Italian") "Rinomina Libro" else "Rename Book",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -527,17 +478,6 @@ fun LibraryGridContent(
             onDelete = { b ->
                 optionMenuBook = null
                 viewModel.deleteBook(b.id)
-            }
-        )
-
-        LiquidBookSelectMenu(
-            expanded = showClassicMenu,
-            onDismissRequest = { showClassicMenu = false },
-            anchorOffset = classicMenuOffset,
-            backdrop = backdrop,
-            onSelectBook = { type ->
-                loadClassicBook(viewModel, type)
-                Toast.makeText(context, "Cargamento romanzo completato!", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -636,29 +576,31 @@ fun BookCard(
 fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
     val context = LocalContext.current
     val importing by viewModel.importing.collectAsState()
+    val language by viewModel.language.collectAsState()
     val scope = rememberCoroutineScope()
 
-    var showClassicMenu by remember { mutableStateOf(false) }
-    var classicMenuOffset by remember { mutableStateOf(Offset.Zero) }
-
     val filePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
             scope.launch {
                 try {
-                    val tempFile = File(context.cacheDir, "temp_import.epub")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
+                    val cr = context.contentResolver
+                    val type = cr.getType(uri)
+                    val isPdf = type?.contains("pdf") == true || uri.path?.endsWith(".pdf", ignoreCase = true) == true
+                    val ext = if (isPdf) "pdf" else "epub"
+                    val tempFile = File(context.cacheDir, "temp_import.$ext")
+                    cr.openInputStream(uri)?.use { input ->
                         FileOutputStream(tempFile).use { output ->
                             input.copyTo(output)
                         }
                     }
-                    viewModel.importEpub(tempFile) {
-                        Toast.makeText(context, "Book imported successfully!", Toast.LENGTH_SHORT).show()
+                    viewModel.importFile(tempFile) {
+                        Toast.makeText(context, if (language == "Italian") "Libro importato con successo!" else "Book imported successfully!", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    Toast.makeText(context, "Failed to import EPUB: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, if (language == "Italian") "Errore durante l'importazione: ${e.message}" else "Failed to import: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -676,14 +618,14 @@ fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
             modifier = Modifier.widthIn(max = 360.dp)
         ) {
             Text(
-                text = "EPUB Import Engine",
+                text = if (language == "Italian") "Importa Libro" else "Import Book",
                 color = Color.White,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Black
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Add digital EPUB publications to your local catalog",
+                text = if (language == "Italian") "Aggiungi un libro EPUB o PDF alla tua libreria" else "Add an EPUB or PDF book to your library",
                 color = Color.White.copy(0.5f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
@@ -710,7 +652,7 @@ fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
                     .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(24.dp))
                     .clip(RoundedCornerShape(24.dp))
                     .clickable(enabled = !importing) {
-                        filePicker.launch("application/epub+zip")
+                        filePicker.launch(arrayOf("application/epub+zip", "application/pdf"))
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -718,7 +660,7 @@ fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = Color(0xFF0091FF))
                         Spacer(Modifier.height(16.dp))
-                        Text("Parsing & optimizing chapters...", color = Color.White.copy(0.7f), fontSize = 14.sp)
+                        Text(if (language == "Italian") "Analisi e ottimizzazione capitoli..." else "Parsing & optimizing chapters...", color = Color.White.copy(0.7f), fontSize = 14.sp)
                     }
                 } else {
                     Column(
@@ -733,14 +675,14 @@ fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "Select .epub file",
+                            text = if (language == "Italian") "Seleziona file .epub" else "Select .epub file",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Locally processes images, spines, and styles offline",
+                            text = if (language == "Italian") "Supporta immagini e testo" else "Supports text and images",
                             color = Color.White.copy(0.4f),
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center
@@ -748,58 +690,7 @@ fun UploadContent(viewModel: BookViewModel, backdrop: Backdrop) {
                     }
                 }
             }
-
-            Spacer(Modifier.height(32.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Built-in Classic alternative:",
-                    color = Color.White.copy(0.5f),
-                    fontSize = 13.sp
-                )
-                var classicBtnOffset by remember { mutableStateOf(Offset.Zero) }
-                LiquidButton(
-                    onClick = {
-                        if (!importing) {
-                            classicMenuOffset = classicBtnOffset
-                            showClassicMenu = true
-                        }
-                    },
-                    backdrop = backdrop,
-                    modifier = Modifier
-                        .height(38.dp)
-                        .width(135.dp)
-                        .onGloballyPositioned { coords ->
-                            classicBtnOffset = coords.positionInRoot()
-                        }
-                        .border(1.dp, Color(0xFF0091FF).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                        .clip(RoundedCornerShape(12.dp)),
-                    isInteractive = !importing,
-                    surfaceColor = Color(0xFF0091FF).copy(alpha = 0.08f)
-                ) {
-                    Text(
-                        "Classici ▾",
-                        color = Color(0xFF0091FF),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-            }
         }
-
-        LiquidBookSelectMenu(
-            expanded = showClassicMenu,
-            onDismissRequest = { showClassicMenu = false },
-            anchorOffset = classicMenuOffset,
-            backdrop = backdrop,
-            onSelectBook = { type ->
-                loadClassicBook(viewModel, type)
-                Toast.makeText(context, "Cargamento romanzo completato!", Toast.LENGTH_SHORT).show()
-            }
-        )
     }
 }
 
@@ -872,6 +763,8 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
     val fontFamily by viewModel.fontFamily.collectAsState()
     val lineSpacing by viewModel.lineSpacing.collectAsState()
     val textAlign by viewModel.textAlign.collectAsState()
+    val language by viewModel.language.collectAsState()
+    val ttsEnabled by viewModel.ttsEnabled.collectAsState()
 
     Box(
         modifier = Modifier
@@ -881,7 +774,7 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
-                text = "Preferences",
+                text = if (language == "Italian") "Preferenze" else "Preferences",
                 color = Color.White,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
@@ -894,52 +787,72 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
                 modifier = Modifier.fillMaxSize()
             ) {
                 item {
-                    // Theme Card
-                    SettingsCard(title = "Reader Themes") {
-                        val themesList = listOf("Paper", "Sepia", "Slate", "Cosmic")
+                    SettingsCard(title = if (language == "Italian") "Lingua" else "Language") {
+                        val languages = listOf("English", "Italian")
+                        val selectedIdx = if (language == "Italian") 1 else 0
+                        LiquidSegmentedControl(
+                            selectedOptionIndex = { selectedIdx },
+                            onOptionSelected = { index ->
+                                viewModel.setLanguage(if (index == 1) "Italian" else "English")
+                            },
+                            options = languages,
+                            backdrop = backdrop,
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        )
+                    }
+                }
+
+                item {
+                    SettingsCard(title = if (language == "Italian") "Altro" else "Other") {
                         Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            themesList.forEach { thName ->
-                                val selected = theme == thName
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(44.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            when (thName) {
-                                                "Paper" -> Color.White
-                                                "Sepia" -> Color(0xFFF4ECD8)
-                                                "Slate" -> Color(0xFF2E333F)
-                                                "Cosmic" -> Color(0xFF0F1116)
-                                                else -> Color.Gray
-                                            }
-                                        )
-                                        .border(
-                                            2.dp,
-                                            if (selected) Color(0xFF0091FF) else Color.Transparent,
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { viewModel.setTheme(thName) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = thName,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        color = if (thName == "Paper" || thName == "Sepia") Color.Black else Color.White
-                                    )
-                                }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(if (language == "Italian") "Modalità Sintesi Vocale" else "Text-to-Speech Mode", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(if (language == "Italian") "Ascolta il libro con una voce umana" else "Listen to the book with a human voice", color = Color.White.copy(0.5f), fontSize = 12.sp)
+                            }
+                            LiquidButton(
+                                onClick = { viewModel.setTtsEnabled(!ttsEnabled) },
+                                backdrop = backdrop,
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .width(60.dp)
+                                    .clip(RoundedCornerShape(17.dp))
+                                    .border(1.dp, Color.White.copy(0.2f), RoundedCornerShape(17.dp)),
+                                isInteractive = true,
+                                surfaceColor = if (ttsEnabled) Color(0xFF0091FF) else Color(0xFF1A1F26)
+                            ) {
+                                Text(
+                                    if (ttsEnabled) "ON" else "OFF",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     }
                 }
 
                 item {
+                    // Theme Card
+                    SettingsCard(title = if (language == "Italian") "Temi" else "Themes") {
+                        val themesList = listOf("Paper", "Sepia", "Slate", "Cosmic")
+                        LiquidSegmentedControl(
+                            selectedOptionIndex = { themesList.indexOf(theme).coerceAtLeast(0) },
+                            onOptionSelected = { index ->
+                                viewModel.setTheme(themesList[index])
+                            },
+                            options = themesList,
+                            backdrop = backdrop,
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        )
+                    }
+                }
+
+                item {
                     // Font size slider card
-                    SettingsCard(title = "Font Size Modifier") {
+                    SettingsCard(title = if (language == "Italian") "Dimensione Testo" else "Text Size") {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -971,7 +884,7 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
                 }
 
                 item {
-                    SettingsCard(title = "Typography Pairing") {
+                    SettingsCard(title = if (language == "Italian") "Stile Testo" else "Font Style") {
                         val fonts = listOf("Sans", "Serif", "Monospace", "Georgia")
                         val selectedIdx = when (fontFamily) {
                             "Sans", "SansSerif" -> 0
@@ -1000,7 +913,7 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
                 }
 
                 item {
-                    SettingsCard(title = "Line Spacing Configuration") {
+                    SettingsCard(title = if (language == "Italian") "Interlinea" else "Line Spacing") {
                         val spacingValNames = listOf("Compact", "Normal", "Wide")
                         val selectedIdx = when {
                             lineSpacing <= 1.3f -> 0
@@ -1026,7 +939,7 @@ fun SettingsContent(viewModel: BookViewModel, backdrop: Backdrop) {
                 }
 
                 item {
-                    SettingsCard(title = "Text Alignment Formatting") {
+                    SettingsCard(title = if (language == "Italian") "Allineamento" else "Text Alignment") {
                         val alignmentNames = listOf("Left", "Center", "Justified")
                         val selectedIdx = when (textAlign) {
                             "Left" -> 0
@@ -1101,6 +1014,14 @@ fun ReaderContent(
     val fontFamilySelection by viewModel.fontFamily.collectAsState()
     val lineSpacingScale by viewModel.lineSpacing.collectAsState()
     val textAlignSelection by viewModel.textAlign.collectAsState()
+    val language by viewModel.language.collectAsState()
+
+    val appTts = remember { AppTts() }
+    DisposableEffect(Unit) {
+        onDispose {
+            appTts.stop()
+        }
+    }
 
     // Book Detail info
     var currentBookTitle by remember { mutableStateOf("Reader View") }
@@ -1168,7 +1089,7 @@ fun ReaderContent(
                         surfaceColor = Color.White.copy(0.12f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Chiudi",
                             tint = inkColor,
                             modifier = Modifier.size(18.dp)
@@ -1183,6 +1104,49 @@ fun ReaderContent(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
                     )
+                    
+                    val ttsEnabled by viewModel.ttsEnabled.collectAsState()
+                    var ttsIsPlaying by remember { mutableStateOf(false) }
+                    
+                    appTts.onComplete = {
+                        ttsIsPlaying = false
+                    }
+
+                    if (ttsEnabled) {
+                        LiquidButton(
+                            onClick = { 
+                                if (ttsIsPlaying) {
+                                    appTts.stop()
+                                    ttsIsPlaying = false
+                                } else {
+                                    val textToRead = pages.getOrNull(pagerState.currentPage)?.content ?: ""
+                                    val cleanTextToRead = textToRead.replace(Regex("\\[IMG:.*?\\]"), "")
+                                    if (cleanTextToRead.isNotEmpty()) {
+                                        scope.launch {
+                                            appTts.speak(cleanTextToRead, language == "Italian")
+                                        }
+                                        ttsIsPlaying = true
+                                        Toast.makeText(context, if (language == "Italian") "Inizio riproduzione audio..." else "Playing audio...", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            backdrop = backdrop,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape),
+                            isInteractive = true,
+                            surfaceColor = Color.White.copy(0.12f)
+                        ) {
+                            Icon(
+                                imageVector = if (ttsIsPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
+                                contentDescription = "Toggle TTS",
+                                tint = inkColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(38.dp))
+                    }
                 }
 
                 // Horizontal swiper horizontal-pager
@@ -1198,7 +1162,6 @@ fun ReaderContent(
                         var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
                         var pressOffset by remember { mutableStateOf<Offset?>(null) }
                         var highlightedWordRange by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-                        var highlightRect by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
                         val pointsOnThisPage = remember(savedPoints, pageIdx) {
                             savedPoints.filter { it.pageIndex == pageIdx }
@@ -1217,17 +1180,7 @@ fun ReaderContent(
                                 // Visually flash high contrast glass indicator on that specific word
                                 val wordRange = getWordRangeAtOffset(tlr.layoutInput.text.toString(), charIdx)
                                 if (wordRange.first in 0..wordRange.second && wordRange.second < tlr.layoutInput.text.length) {
-                                    val firstCharRect = tlr.getBoundingBox(wordRange.first)
-                                    val lastCharRect = tlr.getBoundingBox(wordRange.second)
                                     highlightedWordRange = wordRange
-                                    highlightRect = if (firstCharRect != null && lastCharRect != null) {
-                                        androidx.compose.ui.geometry.Rect(
-                                            left = firstCharRect.left,
-                                            top = firstCharRect.top,
-                                            right = lastCharRect.right,
-                                            bottom = lastCharRect.bottom
-                                        )
-                                    } else null
                                 }
                                 pendingScrollToChar = null
                             }
@@ -1259,9 +1212,20 @@ fun ReaderContent(
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 Box(modifier = Modifier.fillMaxWidth()) {
+                                     
                                     val annotatedContent = remember(p.content, highlightedWordRange, pointsOnThisPage) {
                                         buildAnnotatedString {
-                                            append(p.content)
+                                            val imgRegex = Regex("\\[IMG:(.*?)\\]")
+                                            var lastIndex = 0
+                                            for (match in imgRegex.findAll(p.content)) {
+                                                append(p.content.substring(lastIndex, match.range.first))
+                                                appendInlineContent(match.groupValues[1], match.value)
+                                                lastIndex = match.range.last + 1
+                                            }
+                                            if (lastIndex < p.content.length) {
+                                                append(p.content.substring(lastIndex))
+                                            }
+
                                             // 1. Highlight all saved bookmarked points on this page
                                             for (sp in pointsOnThisPage) {
                                                 val range = getWordRangeAtOffset(p.content, sp.charIndex)
@@ -1294,38 +1258,35 @@ fun ReaderContent(
                                         }
                                     }
 
-                                    // Display premium Liquid backdrop highlight overlay over coordinates (drawn first - in background)
-                                    highlightRect?.let { hr ->
-                                        Box(
-                                            modifier = Modifier
-                                                .offset {
-                                                    IntOffset(
-                                                        hr.left.roundToInt(),
-                                                        hr.top.roundToInt()
-                                                    )
-                                                }
-                                                .size(
-                                                    width = with(LocalDensity.current) { hr.width.toDp() },
-                                                    height = with(LocalDensity.current) { hr.height.toDp() }
+                                    val inlineContentMap = remember(p.content) {
+                                        val map = mutableMapOf<String, androidx.compose.foundation.text.InlineTextContent>()
+                                        val imgRegex = Regex("\\[IMG:(.*?)\\]")
+                                        for (match in imgRegex.findAll(p.content)) {
+                                            val imgPath = match.groupValues[1]
+                                            map[imgPath] = InlineTextContent(
+                                                androidx.compose.ui.text.Placeholder(
+                                                    width = 250.sp,
+                                                    height = 350.sp,
+                                                    placeholderVerticalAlign = androidx.compose.ui.text.PlaceholderVerticalAlign.Center
                                                 )
-                                                .drawBackdrop(
-                                                    backdrop = backdrop,
-                                                    shape = { RoundedCornerShape(6.dp) },
-                                                    effects = {
-                                                        vibrancy()
-                                                        blur(6f.dp.toPx())
-                                                        lens(6f.dp.toPx(), 6f.dp.toPx())
-                                                    },
-                                                    onDrawSurface = {
-                                                        drawRect(Color(0xFFFDD835).copy(alpha = 0.35f))
-                                                     }
-                                                 )
-                                                 .border(1.dp, Color(0xFFFBC02D).copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                                         )
-                                     }
+                                            ) {
+                                                coil.compose.AsyncImage(
+                                                    model = java.io.File(imgPath),
+                                                    contentDescription = "Image",
+                                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                )
+                                            }
+                                        }
+                                        map
+                                    }
 
                                     Text(
                                         text = annotatedContent,
+                                        inlineContent = inlineContentMap,
                                         fontSize = fontSizeScale.sp,
                                         color = inkColor.copy(0.9f),
                                         lineHeight = (fontSizeScale * lineSpacingScale).sp,
@@ -1351,7 +1312,6 @@ fun ReaderContent(
                                                 detectTapGestures(
                                                     onTap = {
                                                         highlightedWordRange = null
-                                                        highlightRect = null
                                                     },
                                                     onLongPress = { offset ->
                                                         val tlr = textLayoutResult
@@ -1379,17 +1339,7 @@ fun ReaderContent(
                                                                 // Highlight visually with yellow underlined state range representation
                                                                 val wordRange = getWordRangeAtOffset(p.content, charIdx)
                                                                 if (wordRange.first in 0..wordRange.second && wordRange.second < p.content.length) {
-                                                                    val firstCharRect = tlr.getBoundingBox(wordRange.first)
-                                                                    val lastCharRect = tlr.getBoundingBox(wordRange.second)
                                                                     highlightedWordRange = wordRange
-                                                                    highlightRect = if (firstCharRect != null && lastCharRect != null) {
-                                                                        androidx.compose.ui.geometry.Rect(
-                                                                            left = firstCharRect.left,
-                                                                            top = firstCharRect.top,
-                                                                            right = lastCharRect.right,
-                                                                            bottom = lastCharRect.bottom
-                                                                        )
-                                                                     } else null
                                                                   }
                                                               }
                                                           }
@@ -1424,17 +1374,7 @@ fun ReaderContent(
                                                                 // Highlight visually with Liquid frame
                                                                 val wordRange = getWordRangeAtOffset(p.content, charIdx)
                                                                 if (wordRange.first in 0..wordRange.second && wordRange.second < p.content.length) {
-                                                                    val firstCharRect = tlr.getBoundingBox(wordRange.first)
-                                                                    val lastCharRect = tlr.getBoundingBox(wordRange.second)
                                                                     highlightedWordRange = wordRange
-                                                                    highlightRect = if (firstCharRect != null && lastCharRect != null) {
-                                                                        androidx.compose.ui.geometry.Rect(
-                                                                            left = firstCharRect.left,
-                                                                            top = firstCharRect.top,
-                                                                            right = lastCharRect.right,
-                                                                            bottom = lastCharRect.bottom
-                                                                        )
-                                                                    } else null
                                                                 }
                                                             }
                                                         }
@@ -1492,18 +1432,20 @@ fun ReaderContent(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ReaderLiquidGlassButton(
-                            text = "Torna",
-                            onClick = onClose,
-                            backdrop = backdrop,
-                            modifier = Modifier.weight(1f)
-                        )
-                        ReaderLiquidGlassButton(
-                            text = "Punti",
+                        LiquidButton(
                             onClick = { showBookmarksDrawer = true },
                             backdrop = backdrop,
-                            modifier = Modifier.weight(1f)
-                        )
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            isInteractive = true,
+                            surfaceColor = Color.White.copy(0.12f)
+                        ) {
+                            Text(
+                                text = if (language == "Italian") "Punti" else "Bookmarks",
+                                color = inkColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
@@ -1685,19 +1627,17 @@ fun ReaderLiquidGlassButton(
     backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
-    LiquidButton(
-        onClick = onClick,
-        backdrop = backdrop,
+    Box(
         modifier = modifier
-            .height(38.dp),
-        isInteractive = true,
-        surfaceColor = Color.White
+            .height(38.dp)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = Color.Black, // Strictly Color.Black for maximum contrast/legibility
+            color = Color.White.copy(alpha = 0.85f),
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             letterSpacing = (-0.1).sp
         )
     }

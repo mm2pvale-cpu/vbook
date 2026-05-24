@@ -39,8 +39,12 @@ class BookRepository(private val bookDao: BookDao) {
 
     suspend fun deleteSavedPoint(id: Int) = bookDao.deleteSavedPoint(id)
 
-    suspend fun importEpub(context: Context, epubFile: File) = withContext(Dispatchers.IO) {
-        val parsed = EpubParser.parseEpub(context, epubFile)
+    suspend fun importFile(context: Context, file: File) = withContext(Dispatchers.IO) {
+        val parsed = if (file.extension.equals("pdf", ignoreCase = true)) {
+            EpubParser.parsePdf(context, file)
+        } else {
+            EpubParser.parseEpub(context, file)
+        }
         val book = Book(
             id = parsed.id,
             title = parsed.title,

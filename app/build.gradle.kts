@@ -120,4 +120,7 @@ dependencies {
     
     // Project backdrop
     implementation(project(":backdrop"))
+    
+    // PdfBox
+    implementation(libs.tom.roush.pdfbox)
 }
